@@ -7,8 +7,16 @@ import pobj.pinboard.document.ClipEllipse;
 import pobj.pinboard.editor.EditorInterface;
 
 public class ToolEllipse implements Tool {
-    private double startX, startY, endX, endY;
-    private Color color = Color.RED;
+    private double startX, startY, endX, endY = -1;
+    private Color color;
+
+    public ToolEllipse() {
+        color = Color.RED;
+    }
+
+    public ToolEllipse(Color color) {
+        this.color = color;
+    }
 
     @Override
     public void press(EditorInterface i, MouseEvent e) {
@@ -35,10 +43,19 @@ public class ToolEllipse implements Tool {
         }
 
         i.getBoard().addClip(new ClipEllipse(startX, startY, endX, endY, color));
+
+        startX = -1;
+        startY = -1;
+        endX = -1;
+        endY = -1;
     }
 
     @Override
     public void drawFeedback(EditorInterface i, GraphicsContext gc) {
+        if (startX == -1 || startY == -1 || endX == -1 || endY == -1) {
+            return;
+        }
+
         double x = Math.min(startX, endX);
         double y = Math.min(startY, endY);
         double width = Math.max(startX, endX) - x;
@@ -52,5 +69,10 @@ public class ToolEllipse implements Tool {
     @Override
     public String getName(EditorInterface editor) {
         return "Ellipse";
+    }
+
+    @Override
+    public void setColor(Color color) {
+        this.color = color;
     }
 }

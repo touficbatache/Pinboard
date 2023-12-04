@@ -12,13 +12,9 @@ public class ClipImage extends AbstractClip implements Clip {
     private final Image image;
 
     public ClipImage(double left, double top, Image image) {
-        super(left, top, 0, 0, null);
+        super(left, top, left + image.getWidth(), top + image.getHeight(), null);
 
         this.image = image;
-    }
-
-    public void updateCoordinates(double x, double y) {
-        setGeometry(x, y, x + image.getWidth(),y + image.getHeight());
     }
 
     @Override

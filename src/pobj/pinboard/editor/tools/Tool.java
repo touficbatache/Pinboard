@@ -2,6 +2,7 @@ package pobj.pinboard.editor.tools;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
 import pobj.pinboard.editor.EditorInterface;
 
 public interface Tool {
@@ -10,4 +11,5 @@ public interface Tool {
 	public void release(EditorInterface i, MouseEvent e);
 	public void drawFeedback(EditorInterface i, GraphicsContext gc);
 	public String getName(EditorInterface editor);
+	public void setColor(Color color);
 }

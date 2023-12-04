@@ -7,10 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Board {
-    private List<Clip> contents;
+    private final List<Clip> contents;
 
     public Board() {
-        contents = new ArrayList<Clip>();
+        contents = new ArrayList<>();
     }
 
     public List<Clip> getContents() {
