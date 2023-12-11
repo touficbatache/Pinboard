@@ -6,6 +6,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import pobj.pinboard.document.ClipImage;
 import pobj.pinboard.editor.EditorInterface;
+import pobj.pinboard.editor.commands.CommandAdd;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,7 +35,9 @@ public class ToolImage implements Tool {
 
     @Override
     public void release(EditorInterface i, MouseEvent e) {
-        i.getBoard().addClip(new ClipImage(x, y, image));
+        CommandAdd cmd = new CommandAdd(i, new ClipImage(x, y, image));
+        i.getUndoStack().addCommand(cmd);
+        cmd.execute();
     }
 
     @Override

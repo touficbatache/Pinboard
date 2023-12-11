@@ -27,9 +27,7 @@ public class Clipboard {
         for (Clip clip : clips) {
             this.clips.add(clip.copy());
         }
-        for (ClipboardListener listener : listeners) {
-            listener.clipboardChanged();
-        }
+        onChange();
     }
 
     public List<Clip> copyFromClipboard() {
@@ -42,9 +40,7 @@ public class Clipboard {
 
     public void clear() {
         clips.clear();
-        for (ClipboardListener listener : listeners) {
-            listener.clipboardChanged();
-        }
+        onChange();
     }
 
     public boolean isEmpty() {
@@ -57,5 +53,11 @@ public class Clipboard {
 
     public void removeListener(ClipboardListener listener) {
         listeners.remove(listener);
+    }
+
+    private void onChange() {
+        for (ClipboardListener listener : listeners) {
+            listener.clipboardChanged();
+        }
     }
 }

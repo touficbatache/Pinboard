@@ -5,6 +5,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import pobj.pinboard.document.ClipEllipse;
 import pobj.pinboard.editor.EditorInterface;
+import pobj.pinboard.editor.commands.CommandAdd;
 
 public class ToolEllipse implements Tool {
     private double startX, startY, endX, endY = -1;
@@ -42,7 +43,9 @@ public class ToolEllipse implements Tool {
             startY = e.getY();
         }
 
-        i.getBoard().addClip(new ClipEllipse(startX, startY, endX, endY, color));
+        CommandAdd cmd = new CommandAdd(i, new ClipEllipse(startX, startY, endX, endY, color));
+        i.getUndoStack().addCommand(cmd);
+        cmd.execute();
 
         startX = -1;
         startY = -1;

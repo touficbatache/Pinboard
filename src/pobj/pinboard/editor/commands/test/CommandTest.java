@@ -10,18 +10,28 @@ import pobj.pinboard.editor.Selection;
 
 public class CommandTest {
 
-	public class MockEditor implements EditorInterface {
-		private Board board = new Board();
-		public Board getBoard() { return board; }
+    public class MockEditor implements EditorInterface {
+        private final Board board = new Board();
 
-                private Selection selection = new Selection();
-		public Selection getSelection() { return selection; }
+        public Board getBoard() {
+            return board;
+        }
 
-                // à décommenter quand CommandStack est définie et que getUndoStack est ajoutée à EditorInterface
-                //private CommandStack command = new CommandStack();
-		//public CommandStack getUndoStack() { return command; }
+        private final Selection selection = new Selection();
 
-                public Color getCurrentColor() { return Color.RED; }
-	};
-	
+        public Selection getSelection() {
+            return selection;
+        }
+
+        // à décommenter quand CommandStack est définie et que getUndoStack est ajoutée à EditorInterface
+        private final CommandStack command = new CommandStack();
+
+        public CommandStack getUndoStack() {
+            return command;
+        }
+
+        public Color getCurrentColor() {
+            return Color.RED;
+        }
+    }
 }

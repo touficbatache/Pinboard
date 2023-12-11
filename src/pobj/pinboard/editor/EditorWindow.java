@@ -10,30 +10,39 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import pobj.pinboard.document.Board;
-import pobj.pinboard.document.Clip;
-import pobj.pinboard.document.ClipEllipse;
-import pobj.pinboard.document.ClipRect;
-import pobj.pinboard.editor.test.SelectionTest;
+import pobj.pinboard.document.*;
+import pobj.pinboard.editor.commands.CommandAdd;
+import pobj.pinboard.editor.commands.CommandGroup;
+import pobj.pinboard.editor.commands.CommandUngroup;
 import pobj.pinboard.editor.tools.*;
 
 import java.io.FileNotFoundException;
-import java.util.List;
 
-public class EditorWindow implements EditorInterface, ClipboardListener {
+public class EditorWindow implements EditorInterface, ClipboardListener, SelectionListener, CommandStackListener {
     private final Board board;
+    private final CommandStack commandStack;
     private final Selection selection;
     private Color color;
     private Tool tool;
     private final Canvas canvas;
 
     private final Label label;
+    private final MenuItem menuItemCopy;
     private final MenuItem menuItemPaste;
+    private final MenuItem menuItemDelete;
+    private final MenuItem menuItemGroup;
+    private final MenuItem menuItemUngroup;
+    private final MenuItem menuItemUndo;
+    private final MenuItem menuItemRedo;
 
     public EditorWindow(Stage stage) {
         board = new Board();
 
+        commandStack = new CommandStack();
+        commandStack.addListener(this);
+
         selection = new Selection();
+        selection.addListener(this);
 
         Clipboard.getInstance().addListener(this);
 
@@ -54,12 +63,14 @@ public class EditorWindow implements EditorInterface, ClipboardListener {
         updateLabelText();
 
         EventHandler<ActionEvent> selectRectangleTool = e -> {
+            clearSelection();
             tool = toolRect;
             tool.setColor(color);
             updateLabelText();
         };
 
         EventHandler<ActionEvent> selectEllipseTool = e -> {
+            clearSelection();
             tool = toolEllipse;
             tool.setColor(color);
             updateLabelText();
@@ -75,6 +86,7 @@ public class EditorWindow implements EditorInterface, ClipboardListener {
                 FileChooser fileChooser = new FileChooser();
                 fileChooser.setTitle("Choose image");
                 fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.gif"));
+                clearSelection();
                 tool = new ToolImage(fileChooser.showOpenDialog(stage));
                 updateLabelText();
             } catch (FileNotFoundException ex) {
@@ -99,7 +111,7 @@ public class EditorWindow implements EditorInterface, ClipboardListener {
         Menu menuEdit = new Menu("Edit");
 
         // Menu "Edit" -> Item "Copy"
-        MenuItem menuItemCopy = new MenuItem("Copy");
+        menuItemCopy = new MenuItem("Copy");
         menuItemCopy.setOnAction(e -> {
             Clipboard.getInstance().clear();
             Clipboard.getInstance().copyToClipboard(getSelection().getContents());
@@ -108,22 +120,66 @@ public class EditorWindow implements EditorInterface, ClipboardListener {
         // Menu "Edit" -> Item "Paste"
         menuItemPaste = new MenuItem("Paste");
         menuItemPaste.setOnAction(e -> {
-            getSelection().clear();
-            getBoard().addClip(Clipboard.getInstance().copyFromClipboard());
+            clearSelection();
+
+            CommandAdd commandAdd = new CommandAdd(this, Clipboard.getInstance().copyFromClipboard());
+            getUndoStack().addCommand(commandAdd);
+            commandAdd.execute();
+
             Clipboard.getInstance().clear();
+
             draw();
         });
-        menuItemPaste.setDisable(Clipboard.getInstance().isEmpty());
 
         // Menu "Edit" -> Item "Delete"
-        MenuItem menuItemDelete = new MenuItem("Delete");
+        menuItemDelete = new MenuItem("Delete");
         menuItemDelete.setOnAction(e -> {
             getSelection().getContents().forEach((clip -> getBoard().removeClip(clip)));
-            getSelection().clear();
+            clearSelection();
+        });
+
+        // Menu "Edit" -> Item "Group"
+        menuItemGroup = new MenuItem("Group");
+        menuItemGroup.setOnAction(e -> {
+            CommandGroup commandGroup = new CommandGroup(this, getSelection().getContents());
+            getUndoStack().addCommand(commandGroup);
+            commandGroup.execute();
+
             draw();
         });
 
-        menuEdit.getItems().addAll(menuItemCopy, menuItemPaste, menuItemDelete);
+        // Menu "Edit" -> Item "Ungroup"
+        menuItemUngroup = new MenuItem("Ungroup");
+        menuItemUngroup.setOnAction(e -> {
+            if (getSelection().getContents().size() == 1 && getSelection().getContents().get(0) instanceof ClipGroup clipGroup) {
+                CommandUngroup commandUngroup = new CommandUngroup(this, clipGroup);
+                getUndoStack().addCommand(commandUngroup);
+                commandUngroup.execute();
+
+                draw();
+            }
+        });
+
+        // Menu "Edit" -> Item "Undo"
+        menuItemUndo = new MenuItem("Undo");
+        menuItemUndo.setOnAction(e -> {
+            commandStack.undo();
+
+            draw();
+        });
+
+        // Menu "Edit" -> Item "Redo"
+        menuItemRedo = new MenuItem("Redo");
+        menuItemRedo.setOnAction(e -> {
+            commandStack.redo();
+
+            draw();
+        });
+
+        clipboardChanged();
+        selectionChanged();
+        commandStackChanged();
+        menuEdit.getItems().addAll(menuItemCopy, menuItemPaste, menuItemDelete, menuItemGroup, menuItemUngroup, menuItemUndo, menuItemRedo);
 
         // --------- Menu "Tools" ---------
         Menu menuTools = new Menu("Tools");
@@ -264,7 +320,11 @@ public class EditorWindow implements EditorInterface, ClipboardListener {
         Scene scene = new Scene(vBox);
         stage.setScene(scene);
         stage.show();
-        stage.setOnCloseRequest(e -> Clipboard.getInstance().removeListener(this));
+        stage.setOnCloseRequest(e -> {
+            Clipboard.getInstance().removeListener(this);
+            getSelection().removeListener(this);
+            getUndoStack().removeListener(this);
+        });
     }
 
     @Override
@@ -277,9 +337,14 @@ public class EditorWindow implements EditorInterface, ClipboardListener {
         return selection;
     }
 
+    private void clearSelection() {
+        getSelection().clear();
+        draw();
+    }
+
     @Override
     public CommandStack getUndoStack() {
-        return null;
+        return commandStack;
     }
 
     private void draw() {
@@ -291,6 +356,32 @@ public class EditorWindow implements EditorInterface, ClipboardListener {
     public void clipboardChanged() {
         if (menuItemPaste != null) {
             menuItemPaste.setDisable(Clipboard.getInstance().isEmpty());
+        }
+    }
+
+    @Override
+    public void selectionChanged() {
+        if (menuItemCopy != null) {
+            menuItemCopy.setDisable(getSelection().getContents().isEmpty());
+        }
+        if (menuItemDelete != null) {
+            menuItemDelete.setDisable(getSelection().getContents().isEmpty());
+        }
+        if (menuItemGroup != null) {
+            menuItemGroup.setDisable(getSelection().getContents().size() <= 1);
+        }
+        if (menuItemUngroup != null) {
+            menuItemUngroup.setDisable(getSelection().getContents().size() != 1 || !(getSelection().getContents().get(0) instanceof ClipGroup));
+        }
+    }
+
+    @Override
+    public void commandStackChanged() {
+        if (menuItemUndo != null) {
+            menuItemUndo.setDisable(getUndoStack().isUndoEmpty());
+        }
+        if (menuItemRedo != null) {
+            menuItemRedo.setDisable(getUndoStack().isRedoEmpty());
         }
     }
 

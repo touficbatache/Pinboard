@@ -10,9 +10,11 @@ import java.util.List;
 
 public class Selection {
     private final List<Clip> clips;
+    private final List<SelectionListener> listeners;
 
     public Selection() {
         clips = new ArrayList<>();
+        listeners = new ArrayList<>();
     }
 
     public void select(Board board, double x, double y) {
@@ -21,6 +23,7 @@ public class Selection {
             Clip content = board.getContents().get(i);
             if (content.isSelected(x, y)) {
                 clips.add(content);
+                onChange();
                 return;
             }
         }
@@ -35,6 +38,7 @@ public class Selection {
                 } else {
                     clips.add(content);
                 }
+                onChange();
                 return;
             }
         }
@@ -42,6 +46,7 @@ public class Selection {
 
     public void clear() {
         clips.clear();
+        onChange();
     }
 
     public List<Clip> getContents() {
@@ -83,10 +88,6 @@ public class Selection {
         }
 
         if (left == -1 || top == -1 || right == -1 || bottom == -1) {
-            left = -1;
-            top = -1;
-            right = -1;
-            bottom = -1;
             return;
         }
 
@@ -94,10 +95,6 @@ public class Selection {
         top -= gap;
         right += gap;
         bottom += gap;
-
-        if (left == -1 || top == -1 || right == -1 || bottom == -1) {
-            return;
-        }
 
         double originalLw = gc.getLineWidth();
         gc.setLineWidth(2);
@@ -118,5 +115,19 @@ public class Selection {
             gc.strokeRect(left, top, right - left, bottom - top);
         }
         gc.setLineWidth(originalLw);
+    }
+
+    public void addListener(SelectionListener listener) {
+        listeners.add(listener);
+    }
+
+    public void removeListener(SelectionListener listener) {
+        listeners.remove(listener);
+    }
+
+    private void onChange() {
+        for (SelectionListener listener : listeners) {
+            listener.selectionChanged();
+        }
     }
 }
